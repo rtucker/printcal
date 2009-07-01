@@ -1,7 +1,8 @@
 #!/usr/bin/python -W ignore
 
 # script based off of gcalcli to print a daily schedule from the calendar
-# ryan tucker, 2009/03/25
+
+# Ryan Tucker <rtucker@gmail.com>, 2009/03/25
 
 import cups
 from datetime import *
