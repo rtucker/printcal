@@ -1,0 +1,14 @@
+An overly hackish script to print a daily calendar.  This is gonna get
+some generalization work, you know it.
+
+Disobvious requirements:
+todo.py, for interfacing with hiveminder:
+http://theherdofkittens.com/intranet/python/hm/index.html
+
+For what it's worth, ~/.gcalclirc looks like:
+
+[gcalcli]
+user: blahblah@gmail.com
+pw: hunter2
+cals: owner
+
