@@ -1,0 +1,191 @@
+#!/usr/bin/python -W ignore
+
+# script based off of gcalcli to print a daily schedule from the calendar
+# ryan tucker, 2009/03/25
+
+import cups
+from datetime import *
+from dateutil.tz import *
+from dateutil.parser import *
+import gcalcli
+import miniweather
+import os
+import string
+import tempfile
+
+maxcolumns = 77
+maxrows = 65
+days = 30
+
+cfg = gcalcli.LoadConfig('~/.gcalclirc')
+usr = gcalcli.GetConfig(cfg, 'user', '')
+pwd = gcalcli.GetConfig(cfg, 'pw', '') 
+access = gcalcli.GetConfig(cfg, 'cals', 'all')
+details = True
+
+timeFormat = '%l:%M'
+dayFormat = '\n%a %b %d'
+
+today = datetime.now(tzlocal()).replace(hour=0, minute=0, second=0, microsecond=0)
+tomorrow = today + timedelta(days=1)
+dayafter = tomorrow + timedelta(days=1)
+
+gcal = gcalcli.GoogleCalendar(username=usr, password=pwd, access=access, details=details)
+
+eventList = gcal._SearchForCalEvents(today, today + gcalcli.timedelta(days=30), today, None)
+
+weather = miniweather.getweather()
+
+outrows = []
+
+day = ''
+wx = ''
+
+def get_todo_by_day(date='today'):
+	# Prints a todo list by date, from todo.py.
+	# Should just be able to import it, but arrrgh
+	todopath = '/home/rtucker/bin/todo.py'
+	todolist = os.popen(todopath + ' --due %s list' % date).readlines()
+	if len(todolist) > 0:
+		# remove the first line, since it's boilerplate
+		return todolist[1:]
+	else:
+		# empty list
+		return todolist
+
+for event in eventList:
+	eventStartDateTime = parse(event.when[0].start_time, default=today).astimezone(tzlocal())
+	if eventStartDateTime < today:
+		continue
+	tmpDayStr = eventStartDateTime.strftime(dayFormat)
+	meridiem = eventStartDateTime.strftime('%p').lower()
+	tmpTimeStr = eventStartDateTime.strftime(timeFormat) + meridiem
+
+	eventstring = '%-7s  %s' % (tmpTimeStr, event.title.text)
+
+	try:
+		tmptodaywx = weather[(eventStartDateTime - today).days]
+		if False in tmptodaywx:
+			tmpwxstr = ''
+			for wxelement in tmptodaywx:
+				if not wxelement:
+					tmpwxstr = tmpwxstr + ' NA'
+				else:
+					tmpwxstr = tmpwxstr + '%3i' % wxelement
+			tmpwxstr = tmpwxstr + '%'
+		else:
+			tmpwxstr = '%3i%3i%3i%%' % tmptodaywx
+	except KeyError:
+		tmpwxstr = wx = None
+
+	if event.when[0].end_time:
+		eventEndDateTime = parse(event.when[0].end_time,
+			default=today).astimezone(tzlocal())
+		diffDateTime = (eventEndDateTime - eventStartDateTime)
+		lengthstring = 'Len: %s' % diffDateTime.__str__()[:-3]
+		if lengthstring == 'Len: 1 day, 0:00':
+			lengthstring = ''
+	else: lengthstring = ''
+
+	if event.where[0].value_string:
+		locationstring = 'At: %s' % event.where[0].value_string
+	else: locationstring = ''
+
+	if event.content.text:
+		contentstring = 'Content: %s' % event.content.text.strip()
+	else: contentstring = ''
+
+	# assemble some output!
+	outblock = ''
+	indent = ' '*11
+
+	if (tmpDayStr != day):
+		outstring = tmpDayStr + ' ' + eventstring
+		day = tmpDayStr
+	elif (tmpwxstr != wx):
+		outstring = tmpwxstr + ' ' + eventstring
+		wx = tmpwxstr
+	else:
+		outstring = indent + eventstring
+
+	if lengthstring:
+		if len(outstring) + len(lengthstring) < maxcolumns:
+			outstring = outstring + ', ' + lengthstring
+		else:
+			# we've wrapped!
+			outblock = outblock + outstring + '\n'
+			if (tmpwxstr != wx):
+				outstring = tmpwxstr + indent + ' ' + lengthstring
+				wx = tmpwxstr
+			else:
+				outstring = indent*2 + lengthstring
+	if locationstring:
+		if len(outstring) + len(locationstring) < maxcolumns:
+			outstring = outstring + ', ' + locationstring
+		else:
+			outblock = outblock + outstring + '\n'
+			if (tmpwxstr != wx):
+				outstring = tmpwxstr + indent + ' ' + locationstring
+				wx = tmpwxstr
+			else:
+				outstring = indent*2 + locationstring
+	if contentstring:
+		# this always gets its own line
+		outblock = outblock + outstring + '\n'
+		if (tmpwxstr != wx):
+			outstring = tmpwxstr + indent + ' ' + contentstring
+		else:
+			outblock = outblock + indent*2 + contentstring
+		outstring = ''
+	if outstring:
+		# flush the buffer, if you will
+		outblock = outblock + outstring
+
+	outrows.append(outblock)
+
+curline = 1
+tmpfile = tempfile.NamedTemporaryFile()
+
+# grab a couple days of to-do lists...
+for i in ['overdue', today, tomorrow, dayafter]:
+	if i == 'overdue':
+		rawdate = 'before/today'
+		dayofweek = 'OVERDUE'
+	else:
+		rawdate = i.strftime('%Y/%m/%d')	# 2009/07/01
+		dayofweek = i.strftime('%A')		# Wednesday
+	if curline < maxrows:
+		todo = get_todo_by_day(rawdate)
+		if todo:
+			curline = curline + 1
+			tmpfile.write(dayofweek + '\n')
+			for j in todo:
+				if curline < maxrows:
+					if (len(j)/maxcolumns > 0):
+						curline = curline + (len(j)/maxcolumns)
+					else:
+						curline = curline + 1
+					tmpfile.write(j)
+
+for i in outrows:
+	if curline > maxrows: break
+
+	for j in string.split(i, '\n'):
+		if (len(j)/maxcolumns > 0):
+			# it's gonna wrap
+			curline = curline + (len(j)/maxcolumns)
+		curline = curline + 1
+		if curline < maxrows:
+			try:
+				tmpfile.write(j + '\n')
+			except UnicodeEncodeError:
+				tmpfile.write("FAIL: " + `j` + '\n')
+
+# Printing time!
+tmpfile.flush()
+printer = cups.Connection()
+printer.printFile('samsung', tmpfile.name, "Ryan's Daily Schedule", {})
+#tmpfile.seek(0)
+#print tmpfile.read()
+tmpfile.close()
+
