@@ -26,15 +26,19 @@ details = True
 timeFormat = '%l:%M'
 dayFormat = '\n%a %b %d'
 
+weather = miniweather.getweather()
+
 today = datetime.now(tzlocal()).replace(hour=0, minute=0, second=0, microsecond=0)
 tomorrow = today + timedelta(days=1)
 dayafter = tomorrow + timedelta(days=1)
 
+todaywx = (today, weather[0])
+tomorrowwx = (tomorrow, weather[1])
+dayafterwx = (dayafter, weather[2])
+
 gcal = gcalcli.GoogleCalendar(username=usr, password=pwd, access=access, details=details)
 
 eventList = gcal._SearchForCalEvents(today, today + gcalcli.timedelta(days=30), today, None)
-
-weather = miniweather.getweather()
 
 outrows = []
 
@@ -53,6 +57,22 @@ def get_todo_by_day(date='today'):
 		# empty list
 		return todolist
 
+def make_weather_string(wxtuple):
+	(hightemp, lowtemp, pop, dayconditions, nightconditions) = wxtuple
+	output = []
+	if dayconditions:
+		output.append(dayconditions)
+	if hightemp:
+		output.append('High %i' % hightemp)
+	if nightconditions:
+		output.append('At night, %s' % nightconditions)
+	if lowtemp:
+		output.append('Low %i' % lowtemp)
+	if pop:
+		output.append('(POP: %i%%)' % pop)
+
+	return string.join(output, ', ')
+
 for event in eventList:
 	eventStartDateTime = parse(event.when[0].start_time, default=today).astimezone(tzlocal())
 	if eventStartDateTime < today:
@@ -67,7 +87,7 @@ for event in eventList:
 		tmptodaywx = weather[(eventStartDateTime - today).days]
 		if False in tmptodaywx:
 			tmpwxstr = ''
-			for wxelement in tmptodaywx:
+			for wxelement in tmptodaywx[0:3]:
 				if not wxelement:
 					tmpwxstr = tmpwxstr + ' NA'
 				else:
@@ -147,18 +167,21 @@ curline = 1
 tmpfile = tempfile.NamedTemporaryFile()
 
 # grab a couple days of to-do lists...
-for i in ['overdue', today, tomorrow, dayafter]:
+for i in ['overdue', todaywx, tomorrowwx, dayafterwx]:
 	if i == 'overdue':
 		rawdate = 'before/today'
 		dayofweek = 'OVERDUE'
+		tmpfile.write('*** OVERDUE ***\n')
 	else:
-		rawdate = i.strftime('%Y/%m/%d')	# 2009/07/01
-		dayofweek = i.strftime('%A')		# Wednesday
+		day = i[0]
+		wx = i[1]
+		rawdate = day.strftime('%Y/%m/%d')	# 2009/07/01
+		dayofweek = day.strftime('%A')		# Wednesday
+		tmpfile.write(dayofweek + ': %s\n' % make_weather_string(wx))
 	if curline < maxrows:
 		todo = get_todo_by_day(rawdate)
 		if todo:
 			curline = curline + 1
-			tmpfile.write(dayofweek + '\n')
 			for j in todo:
 				if curline < maxrows:
 					if (len(j)/maxcolumns > 0):
