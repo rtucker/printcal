@@ -89,10 +89,10 @@ for event in eventList:
 			tmpwxstr = ''
 			for wxelement in tmptodaywx[0:3]:
 				if not wxelement:
-					tmpwxstr = tmpwxstr + ' NA'
+					tmpwxstr += ' NA'
 				else:
-					tmpwxstr = tmpwxstr + '%3i' % wxelement
-			tmpwxstr = tmpwxstr + '%'
+					tmpwxstr += '%3i' % wxelement
+			tmpwxstr += '%'
 		else:
 			tmpwxstr = '%3i%3i%3i%%' % tmptodaywx
 	except KeyError:
@@ -130,10 +130,10 @@ for event in eventList:
 
 	if lengthstring:
 		if len(outstring) + len(lengthstring) < maxcolumns:
-			outstring = outstring + ', ' + lengthstring
+			outstring += ', ' + lengthstring
 		else:
 			# we've wrapped!
-			outblock = outblock + outstring + '\n'
+			outblock += outstring + '\n'
 			if (tmpwxstr != wx):
 				outstring = tmpwxstr + indent + ' ' + lengthstring
 				wx = tmpwxstr
@@ -141,9 +141,9 @@ for event in eventList:
 				outstring = indent*2 + lengthstring
 	if locationstring:
 		if len(outstring) + len(locationstring) < maxcolumns:
-			outstring = outstring + ', ' + locationstring
+			outstring += ', ' + locationstring
 		else:
-			outblock = outblock + outstring + '\n'
+			outblock += outstring + '\n'
 			if (tmpwxstr != wx):
 				outstring = tmpwxstr + indent + ' ' + locationstring
 				wx = tmpwxstr
@@ -151,15 +151,15 @@ for event in eventList:
 				outstring = indent*2 + locationstring
 	if contentstring:
 		# this always gets its own line
-		outblock = outblock + outstring + '\n'
+		outblock += outstring + '\n'
 		if (tmpwxstr != wx):
 			outstring = tmpwxstr + indent + ' ' + contentstring
 		else:
-			outblock = outblock + indent*2 + contentstring
+			outblock += indent*2 + contentstring
 		outstring = ''
 	if outstring:
 		# flush the buffer, if you will
-		outblock = outblock + outstring
+		outblock += outstring
 
 	outrows.append(outblock)
 
@@ -182,13 +182,13 @@ for i in ['overdue', todaywx, tomorrowwx, dayafterwx]:
 		todo = get_todo_by_day(rawdate)
 		if todo:
 			tmpfile.write(header)
-			curline = curline + 1
+			curline += 1
 			for j in todo:
 				if curline < maxrows:
 					if (len(j)/maxcolumns > 0):
-						curline = curline + (len(j)/maxcolumns)
+						curline += (len(j)/maxcolumns)
 					else:
-						curline = curline + 1
+						curline += 1
 					tmpfile.write(j)
 
 for i in outrows:
@@ -197,8 +197,8 @@ for i in outrows:
 	for j in string.split(i, '\n'):
 		if (len(j)/maxcolumns > 0):
 			# it's gonna wrap
-			curline = curline + (len(j)/maxcolumns)
-		curline = curline + 1
+			curline += (len(j)/maxcolumns)
+		curline += 1
 		if curline < maxrows:
 			try:
 				tmpfile.write(j + '\n')
