@@ -11,6 +11,7 @@ import gcalcli
 import miniweather
 import os
 import string
+import sys
 import tempfile
 
 maxcolumns = 77
@@ -207,9 +208,13 @@ for i in outrows:
 
 # Printing time!
 tmpfile.flush()
+tmpfile.seek(0)
+if len(sys.argv) > 1:
+	if sys.argv[1] == 'console':
+		print tmpfile.read()
+		tmpfile.close()
+		sys.exit(0)
+
 printer = cups.Connection()
 printer.printFile('samsung', tmpfile.name, "Ryan's Daily Schedule", {})
-#tmpfile.seek(0)
-#print tmpfile.read()
 tmpfile.close()
-
