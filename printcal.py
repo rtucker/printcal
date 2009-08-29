@@ -215,7 +215,7 @@ def main():
     remaining = 65
     out = []
 
-    iter = iter_text_days(gcal, firstoverdue=True,
+    iter = iter_text_days(gcal, firstoverdue=True, maxwidth=78,
                           path='/home/rtucker/bin/todo.py')
 
     while remaining > 0:
