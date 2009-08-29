@@ -1,7 +1,7 @@
 #!/usr/bin/python -W ignore
 
-# script based off of gcalcli to print a daily schedule from the calendar
-# ryan tucker, 2009/03/25
+# Script based off of gcalcli to print a daily schedule from the calendar
+# Ryan Tucker <rtucker@gmail.com>
 
 import cups
 from datetime import *
@@ -10,61 +10,22 @@ from dateutil.parser import *
 import gcalcli
 import miniweather
 import os
-import string
 import sys
 import tempfile
-
-maxcolumns = 77
-maxrows = 65
-days = 45
-
-cfg = gcalcli.LoadConfig('~/.gcalclirc')
-usr = gcalcli.GetConfig(cfg, 'user', '')
-pwd = gcalcli.GetConfig(cfg, 'pw', '') 
-access = gcalcli.GetConfig(cfg, 'cals', 'all')
-details = True
-
-timeFormat = '%l:%M'
-dayFormat = '\n%a %b %d'
-
-weather = miniweather.getweather()
-
-today = datetime.now(tzlocal()).replace(hour=0, minute=0, second=0, microsecond=0)
-tomorrow = today + timedelta(days=1)
-dayafter = tomorrow + timedelta(days=1)
-
-todaywx = (today, weather[0])
-tomorrowwx = (tomorrow, weather[1])
-dayafterwx = (dayafter, weather[2])
-
-gcal = gcalcli.GoogleCalendar(username=usr, password=pwd, access=access, details=details)
-
-eventList = gcal._SearchForCalEvents(today, today + gcalcli.timedelta(days=30), today, None)
-
-outrows = []
-
-day = ''
-wx = ''
-
-def get_todo_by_day(date='today'):
-    # Prints a todo list by date, from todo.py.
-    # Should just be able to import it, but arrrgh
-    todopath = '/home/rtucker/bin/todo.py'
-    todolist = os.popen(todopath + ' --due %s list' % date).readlines()
-    if len(todolist) > 0:
-        # remove the first line, since it's boilerplate
-        return todolist[1:]
-    else:
-        # empty list
-        return todolist
+import textwrap
 
 def get_cal_by_day(gcal, date=datetime.now(tzlocal()).replace(hour=0, minute=0,
                    second=0, microsecond=0)):
     """Returns a gcalcli eventlist for a given date.  Requires a
        gcalcli.GoogleCalendar instance (gcal), accepts datetime object (date)
     """
-    return gcal._SearchForCalEvents(start=date, end=date+timedelta(days=1),
-                                    defaultDateTime=date, searchText=None)
+    out = []
+    for i in gcal._SearchForCalEvents(start=date, end=date+timedelta(days=1),
+                 defaultDateTime=date, searchText=None):
+        eventStartDateTime = parse(i.when[0].start_time, default=date).astimezone(tzlocal())
+        if eventStartDateTime.strftime('%j') == date.strftime('%j'):
+            out.append(i)
+    return out
 
 def iter_weather(city='Washington',state='DC'):
     """Returns an iterator giving weather for today, tomorrow, and the
@@ -113,26 +74,19 @@ def iter_todo(path, start=datetime.now(tzlocal()).replace(hour=0, minute=0,
         todolist = os.popen(path + ' --due %s list' % search).readlines()
         if len(todolist) > 0:
             # remove the first line, since it's boilerplate
-            yield todolist[1:]
+            out = []
+            for i in todolist[1:]:
+                line = i.strip()
+                if line.startswith('-'):
+                    out.append('   ' + line)
+                elif line.startswith('*'):
+                    out.append(' ' + line)
+                else:
+                    out.append(line)
+            yield out
         else:
             # empty list
-            yield todolist
-
-def make_weather_string(wxtuple):
-    (hightemp, lowtemp, pop, dayconditions, nightconditions) = wxtuple
-    output = []
-    if dayconditions:
-        output.append(dayconditions)
-    if hightemp:
-        output.append('High %i' % hightemp)
-    if nightconditions:
-        output.append('At night, %s' % nightconditions)
-    if lowtemp:
-        output.append('Low %i' % lowtemp)
-    if pop:
-        output.append('(POP: %i%%)' % pop)
-
-    return string.join(output, ', ')
+            yield []
 
 def iter_days(gcal, start=datetime.now(tzlocal()).replace(hour=0, minute=0,
               second=0, microsecond=0),
@@ -178,149 +132,110 @@ def iter_days(gcal, start=datetime.now(tzlocal()).replace(hour=0, minute=0,
 
         yield outdict
 
-def main():
-    for event in eventList:
-        eventStartDateTime = parse(event.when[0].start_time, default=today).astimezone(tzlocal())
-        if eventStartDateTime < today:
-            continue
-        tmpDayStr = eventStartDateTime.strftime(dayFormat)
+def format_day_text(daydict, order=['weather', 'calendar', 'todo']):
+    """Formats a dictionary containing daystuff into a pretty block of
+    text.  Requires daydict (the dictionary of day stuff), accepts
+    order (a list of keys, in order of output preference)."""
+
+    out = []
+    if daydict.has_key('datetime'):
+        out.append(daydict['datetime'].strftime('%A, %B %d (Day %j, week %W)'))
+    elif daydict['day'] < 0:
+        out.append('*** OVERDUE TODO LIST ITEMS ***')
+
+    for i in order:
+        if daydict.has_key(i):
+            out.extend(eval('format_day_sub_%s(daydict["%s"])' % (i, i)))
+
+    return out
+
+def format_day_sub_calendar(row):
+    """Formats a list of CalendarEventEntry objects into a list of pretty
+    output strings."""
+
+    out = []
+
+    for event in row:
+        eventStartDateTime = parse(event.when[0].start_time,
+            default=datetime.now(tzlocal()).replace(hour=0, minute=0,
+            second=0, microsecond=0)).astimezone(tzlocal())
         meridiem = eventStartDateTime.strftime('%p').lower()
-        tmpTimeStr = eventStartDateTime.strftime(timeFormat) + meridiem
+        tmpTimeStr = eventStartDateTime.strftime('%l:%M') + meridiem
+        out.append('%-7s  %s' % (tmpTimeStr, event.title.text))
 
-        eventstring = '%-7s  %s' % (tmpTimeStr, event.title.text)
+    return out
 
-        try:
-            tmptodaywx = weather[(eventStartDateTime - today).days]
-            if False in tmptodaywx:
-                tmpwxstr = ''
-                for wxelement in tmptodaywx[0:3]:
-                    if not wxelement:
-                        tmpwxstr += ' NA'
-                    else:
-                        tmpwxstr += '%3i' % wxelement
-                tmpwxstr += '%'
-            else:
-                tmpwxstr = '%3i%3i%3i%%' % tmptodaywx
-        except KeyError:
-            tmpwxstr = wx = None
+def format_day_sub_todo(row):
+    """Formats a list of todo list items into... well, I don't do much."""
+    return row
 
-        if event.when[0].end_time:
-            eventEndDateTime = parse(event.when[0].end_time,
-                default=today).astimezone(tzlocal())
-            diffDateTime = (eventEndDateTime - eventStartDateTime)
-            lengthstring = 'Len: %s' % diffDateTime.__str__()[:-3]
-            if lengthstring == 'Len: 1 day, 0:00':
-                lengthstring = ''
-        else: lengthstring = ''
+def format_day_sub_weather(row):
+    """Pretties up the weather."""
+    (hightemp, lowtemp, pop, dayconditions, nightconditions) = row
+    output = []
+    if dayconditions:
+        output.append(dayconditions)
+    if hightemp:
+        output.append('High %i' % hightemp)
+    if nightconditions:
+        output.append('At night, %s' % nightconditions)
+    if lowtemp:
+        output.append('Low %i' % lowtemp)
+    if pop:
+        output.append('(POP: %i%%)' % pop)
 
-        if event.where[0].value_string:
-            locationstring = 'At: %s' % event.where[0].value_string
-        else: locationstring = ''
+    return [', '.join(output)]
 
-        if event.content.text:
-            contentstring = 'Content: %s' % event.content.text.strip()
-        else: contentstring = ''
+def iter_text_days(gcal, start=datetime.now(tzlocal()).replace(hour=0,
+                               minute=0, second=0, microsecond=0),
+              end=datetime.fromtimestamp(2**31-86400, tz=tzlocal()),
+              firstoverdue=False, weather=('Rochester', 'NY'), path=None,
+              order=['weather', 'calendar', 'todo'], maxwidth=74):
+    """Yields a list of rows of length < maxwidth.  Arguments are the
+    union of iter_days and format_day_text, basically."""
 
-        # assemble some output!
-        outblock = ''
-        indent = ' '*11
+    iter = iter_days(gcal, start=start, end=end, firstoverdue=firstoverdue,
+                     weather=weather, path=path)
 
-        if (tmpDayStr != day):
-            outstring = tmpDayStr + ' ' + eventstring
-            day = tmpDayStr
-        elif (tmpwxstr != wx):
-            outstring = tmpwxstr + ' ' + eventstring
-            wx = tmpwxstr
-        else:
-            outstring = indent + eventstring
+    for i in iter:
+        out = []
+        for j in format_day_text(i, order=order):
+            out.extend(textwrap.wrap(j, maxwidth))
+        yield out
 
-        if lengthstring:
-            if len(outstring) + len(lengthstring) < maxcolumns:
-                outstring += ', ' + lengthstring
-            else:
-                # we've wrapped!
-                outblock += outstring + '\n'
-                if (tmpwxstr != wx):
-                    outstring = tmpwxstr + indent + ' ' + lengthstring
-                    wx = tmpwxstr
-                else:
-                    outstring = indent*2 + lengthstring
-        if locationstring:
-            if len(outstring) + len(locationstring) < maxcolumns:
-                outstring += ', ' + locationstring
-            else:
-                outblock += outstring + '\n'
-                if (tmpwxstr != wx):
-                    outstring = tmpwxstr + indent + ' ' + locationstring
-                    wx = tmpwxstr
-                else:
-                    outstring = indent*2 + locationstring
-        if contentstring:
-            # this always gets its own line
-            outblock += outstring + '\n'
-            if (tmpwxstr != wx):
-                outstring = tmpwxstr + indent + ' ' + contentstring
-            else:
-                outblock += indent*2 + contentstring
-            outstring = ''
-        if outstring:
-            # flush the buffer, if you will
-            outblock += outstring
+def main():
+    cfg = gcalcli.LoadConfig('~/.gcalclirc')
+    usr = gcalcli.GetConfig(cfg, 'user', '')
+    pwd = gcalcli.GetConfig(cfg, 'pw', '')
+    access = gcalcli.GetConfig(cfg, 'cals', 'all')
+    details = True
 
-        outrows.append(outblock)
+    gcal = gcalcli.GoogleCalendar(username=usr, password=pwd, access=access, details=details)
 
-    curline = 1
-    tmpfile = tempfile.NamedTemporaryFile()
+    remaining = 65
+    out = []
 
-    # grab a couple days of to-do lists...
-    for i in ['overdue', todaywx, tomorrowwx, dayafterwx]:
-        if i == 'overdue':
-            rawdate = 'before/today'
-            dayofweek = 'OVERDUE'
-            header = '*** OVERDUE ***\n'
-        else:
-            day = i[0]
-            wx = i[1]
-            rawdate = day.strftime('%Y/%m/%d')    # 2009/07/01
-            dayofweek = day.strftime('%A')        # Wednesday
-            header = dayofweek + ': %s\n' % make_weather_string(wx)
-        if curline < maxrows:
-            todo = get_todo_by_day(rawdate)
-            if todo:
-                tmpfile.write(header)
-                curline += 1
-                for j in todo:
-                    if curline < maxrows:
-                        if (len(j)/maxcolumns > 0):
-                            curline += (len(j)/maxcolumns)
-                        else:
-                            curline += 1
-                        tmpfile.write(j)
+    iter = iter_text_days(gcal, firstoverdue=True,
+                          path='/home/rtucker/bin/todo.py')
 
-    for i in outrows:
-        if curline > maxrows: break
+    while remaining > 0:
+        row = iter.next()
+        row.append('')  # to get a nice blank line
+        remaining -= len(row)
+        if remaining > 0:
+            out.extend(row)
 
-        for j in string.split(i, '\n'):
-            if (len(j)/maxcolumns > 0):
-                # it's gonna wrap
-                curline += (len(j)/maxcolumns)
-            curline += 1
-            if curline < maxrows:
-                try:
-                    tmpfile.write(j + '\n')
-                except UnicodeEncodeError:
-                    tmpfile.write("FAIL: " + `j` + '\n')
-    
-    # Printing time!
-    tmpfile.flush()
-    tmpfile.seek(0)
     if len(sys.argv) > 1:
         if sys.argv[1] == 'console':
-            print tmpfile.read()
-            tmpfile.close()
+            print '\n'.join(out)
             sys.exit(0)
 
     printer = cups.Connection()
+
+    tmpfile = tempfile.NamedTemporaryFile()
+    tmpfile.write('\n'.join(out))
+    tmpfile.flush()
+    tmpfile.seek(0)
     printer.printFile('samsung', tmpfile.name, "Ryan's Daily Schedule", {})
     tmpfile.close()
 
