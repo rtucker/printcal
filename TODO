@@ -1,0 +1,10 @@
+* Use a better incrementer to search for calendar entries
+  Right now, it pulls a whole glomp.  This sucks and is slow,
+  and adapts poorly to calendars of various sizes.
+
+* Integrate todos and calendar entries
+  Make it day-based instead of event-based
+
+* Improved output format
+  Some nice graphical PDF might be cool
+

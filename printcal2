@@ -47,173 +47,173 @@ day = ''
 wx = ''
 
 def get_todo_by_day(date='today'):
-	# Prints a todo list by date, from todo.py.
-	# Should just be able to import it, but arrrgh
-	todopath = '/home/rtucker/bin/todo.py'
-	todolist = os.popen(todopath + ' --due %s list' % date).readlines()
-	if len(todolist) > 0:
-		# remove the first line, since it's boilerplate
-		return todolist[1:]
-	else:
-		# empty list
-		return todolist
+    # Prints a todo list by date, from todo.py.
+    # Should just be able to import it, but arrrgh
+    todopath = '/home/rtucker/bin/todo.py'
+    todolist = os.popen(todopath + ' --due %s list' % date).readlines()
+    if len(todolist) > 0:
+        # remove the first line, since it's boilerplate
+        return todolist[1:]
+    else:
+        # empty list
+        return todolist
 
 def make_weather_string(wxtuple):
-	(hightemp, lowtemp, pop, dayconditions, nightconditions) = wxtuple
-	output = []
-	if dayconditions:
-		output.append(dayconditions)
-	if hightemp:
-		output.append('High %i' % hightemp)
-	if nightconditions:
-		output.append('At night, %s' % nightconditions)
-	if lowtemp:
-		output.append('Low %i' % lowtemp)
-	if pop:
-		output.append('(POP: %i%%)' % pop)
+    (hightemp, lowtemp, pop, dayconditions, nightconditions) = wxtuple
+    output = []
+    if dayconditions:
+        output.append(dayconditions)
+    if hightemp:
+        output.append('High %i' % hightemp)
+    if nightconditions:
+        output.append('At night, %s' % nightconditions)
+    if lowtemp:
+        output.append('Low %i' % lowtemp)
+    if pop:
+        output.append('(POP: %i%%)' % pop)
 
-	return string.join(output, ', ')
+    return string.join(output, ', ')
 
 for event in eventList:
-	eventStartDateTime = parse(event.when[0].start_time, default=today).astimezone(tzlocal())
-	if eventStartDateTime < today:
-		continue
-	tmpDayStr = eventStartDateTime.strftime(dayFormat)
-	meridiem = eventStartDateTime.strftime('%p').lower()
-	tmpTimeStr = eventStartDateTime.strftime(timeFormat) + meridiem
+    eventStartDateTime = parse(event.when[0].start_time, default=today).astimezone(tzlocal())
+    if eventStartDateTime < today:
+        continue
+    tmpDayStr = eventStartDateTime.strftime(dayFormat)
+    meridiem = eventStartDateTime.strftime('%p').lower()
+    tmpTimeStr = eventStartDateTime.strftime(timeFormat) + meridiem
 
-	eventstring = '%-7s  %s' % (tmpTimeStr, event.title.text)
+    eventstring = '%-7s  %s' % (tmpTimeStr, event.title.text)
 
-	try:
-		tmptodaywx = weather[(eventStartDateTime - today).days]
-		if False in tmptodaywx:
-			tmpwxstr = ''
-			for wxelement in tmptodaywx[0:3]:
-				if not wxelement:
-					tmpwxstr += ' NA'
-				else:
-					tmpwxstr += '%3i' % wxelement
-			tmpwxstr += '%'
-		else:
-			tmpwxstr = '%3i%3i%3i%%' % tmptodaywx
-	except KeyError:
-		tmpwxstr = wx = None
+    try:
+        tmptodaywx = weather[(eventStartDateTime - today).days]
+        if False in tmptodaywx:
+            tmpwxstr = ''
+            for wxelement in tmptodaywx[0:3]:
+                if not wxelement:
+                    tmpwxstr += ' NA'
+                else:
+                    tmpwxstr += '%3i' % wxelement
+            tmpwxstr += '%'
+        else:
+            tmpwxstr = '%3i%3i%3i%%' % tmptodaywx
+    except KeyError:
+        tmpwxstr = wx = None
 
-	if event.when[0].end_time:
-		eventEndDateTime = parse(event.when[0].end_time,
-			default=today).astimezone(tzlocal())
-		diffDateTime = (eventEndDateTime - eventStartDateTime)
-		lengthstring = 'Len: %s' % diffDateTime.__str__()[:-3]
-		if lengthstring == 'Len: 1 day, 0:00':
-			lengthstring = ''
-	else: lengthstring = ''
+    if event.when[0].end_time:
+        eventEndDateTime = parse(event.when[0].end_time,
+            default=today).astimezone(tzlocal())
+        diffDateTime = (eventEndDateTime - eventStartDateTime)
+        lengthstring = 'Len: %s' % diffDateTime.__str__()[:-3]
+        if lengthstring == 'Len: 1 day, 0:00':
+            lengthstring = ''
+    else: lengthstring = ''
 
-	if event.where[0].value_string:
-		locationstring = 'At: %s' % event.where[0].value_string
-	else: locationstring = ''
+    if event.where[0].value_string:
+        locationstring = 'At: %s' % event.where[0].value_string
+    else: locationstring = ''
 
-	if event.content.text:
-		contentstring = 'Content: %s' % event.content.text.strip()
-	else: contentstring = ''
+    if event.content.text:
+        contentstring = 'Content: %s' % event.content.text.strip()
+    else: contentstring = ''
 
-	# assemble some output!
-	outblock = ''
-	indent = ' '*11
+    # assemble some output!
+    outblock = ''
+    indent = ' '*11
 
-	if (tmpDayStr != day):
-		outstring = tmpDayStr + ' ' + eventstring
-		day = tmpDayStr
-	elif (tmpwxstr != wx):
-		outstring = tmpwxstr + ' ' + eventstring
-		wx = tmpwxstr
-	else:
-		outstring = indent + eventstring
+    if (tmpDayStr != day):
+        outstring = tmpDayStr + ' ' + eventstring
+        day = tmpDayStr
+    elif (tmpwxstr != wx):
+        outstring = tmpwxstr + ' ' + eventstring
+        wx = tmpwxstr
+    else:
+        outstring = indent + eventstring
 
-	if lengthstring:
-		if len(outstring) + len(lengthstring) < maxcolumns:
-			outstring += ', ' + lengthstring
-		else:
-			# we've wrapped!
-			outblock += outstring + '\n'
-			if (tmpwxstr != wx):
-				outstring = tmpwxstr + indent + ' ' + lengthstring
-				wx = tmpwxstr
-			else:
-				outstring = indent*2 + lengthstring
-	if locationstring:
-		if len(outstring) + len(locationstring) < maxcolumns:
-			outstring += ', ' + locationstring
-		else:
-			outblock += outstring + '\n'
-			if (tmpwxstr != wx):
-				outstring = tmpwxstr + indent + ' ' + locationstring
-				wx = tmpwxstr
-			else:
-				outstring = indent*2 + locationstring
-	if contentstring:
-		# this always gets its own line
-		outblock += outstring + '\n'
-		if (tmpwxstr != wx):
-			outstring = tmpwxstr + indent + ' ' + contentstring
-		else:
-			outblock += indent*2 + contentstring
-		outstring = ''
-	if outstring:
-		# flush the buffer, if you will
-		outblock += outstring
+    if lengthstring:
+        if len(outstring) + len(lengthstring) < maxcolumns:
+            outstring += ', ' + lengthstring
+        else:
+            # we've wrapped!
+            outblock += outstring + '\n'
+            if (tmpwxstr != wx):
+                outstring = tmpwxstr + indent + ' ' + lengthstring
+                wx = tmpwxstr
+            else:
+                outstring = indent*2 + lengthstring
+    if locationstring:
+        if len(outstring) + len(locationstring) < maxcolumns:
+            outstring += ', ' + locationstring
+        else:
+            outblock += outstring + '\n'
+            if (tmpwxstr != wx):
+                outstring = tmpwxstr + indent + ' ' + locationstring
+                wx = tmpwxstr
+            else:
+                outstring = indent*2 + locationstring
+    if contentstring:
+        # this always gets its own line
+        outblock += outstring + '\n'
+        if (tmpwxstr != wx):
+            outstring = tmpwxstr + indent + ' ' + contentstring
+        else:
+            outblock += indent*2 + contentstring
+        outstring = ''
+    if outstring:
+        # flush the buffer, if you will
+        outblock += outstring
 
-	outrows.append(outblock)
+    outrows.append(outblock)
 
 curline = 1
 tmpfile = tempfile.NamedTemporaryFile()
 
 # grab a couple days of to-do lists...
 for i in ['overdue', todaywx, tomorrowwx, dayafterwx]:
-	if i == 'overdue':
-		rawdate = 'before/today'
-		dayofweek = 'OVERDUE'
-		header = '*** OVERDUE ***\n'
-	else:
-		day = i[0]
-		wx = i[1]
-		rawdate = day.strftime('%Y/%m/%d')	# 2009/07/01
-		dayofweek = day.strftime('%A')		# Wednesday
-		header = dayofweek + ': %s\n' % make_weather_string(wx)
-	if curline < maxrows:
-		todo = get_todo_by_day(rawdate)
-		if todo:
-			tmpfile.write(header)
-			curline += 1
-			for j in todo:
-				if curline < maxrows:
-					if (len(j)/maxcolumns > 0):
-						curline += (len(j)/maxcolumns)
-					else:
-						curline += 1
-					tmpfile.write(j)
+    if i == 'overdue':
+        rawdate = 'before/today'
+        dayofweek = 'OVERDUE'
+        header = '*** OVERDUE ***\n'
+    else:
+        day = i[0]
+        wx = i[1]
+        rawdate = day.strftime('%Y/%m/%d')    # 2009/07/01
+        dayofweek = day.strftime('%A')        # Wednesday
+        header = dayofweek + ': %s\n' % make_weather_string(wx)
+    if curline < maxrows:
+        todo = get_todo_by_day(rawdate)
+        if todo:
+            tmpfile.write(header)
+            curline += 1
+            for j in todo:
+                if curline < maxrows:
+                    if (len(j)/maxcolumns > 0):
+                        curline += (len(j)/maxcolumns)
+                    else:
+                        curline += 1
+                    tmpfile.write(j)
 
 for i in outrows:
-	if curline > maxrows: break
+    if curline > maxrows: break
 
-	for j in string.split(i, '\n'):
-		if (len(j)/maxcolumns > 0):
-			# it's gonna wrap
-			curline += (len(j)/maxcolumns)
-		curline += 1
-		if curline < maxrows:
-			try:
-				tmpfile.write(j + '\n')
-			except UnicodeEncodeError:
-				tmpfile.write("FAIL: " + `j` + '\n')
+    for j in string.split(i, '\n'):
+        if (len(j)/maxcolumns > 0):
+            # it's gonna wrap
+            curline += (len(j)/maxcolumns)
+        curline += 1
+        if curline < maxrows:
+            try:
+                tmpfile.write(j + '\n')
+            except UnicodeEncodeError:
+                tmpfile.write("FAIL: " + `j` + '\n')
 
 # Printing time!
 tmpfile.flush()
 tmpfile.seek(0)
 if len(sys.argv) > 1:
-	if sys.argv[1] == 'console':
-		print tmpfile.read()
-		tmpfile.close()
-		sys.exit(0)
+    if sys.argv[1] == 'console':
+        print tmpfile.read()
+        tmpfile.close()
+        sys.exit(0)
 
 printer = cups.Connection()
 printer.printFile('samsung', tmpfile.name, "Ryan's Daily Schedule", {})
