@@ -149,6 +149,14 @@ def format_day_text(daydict, order=['weather', 'calendar', 'todo']):
 
     return out
 
+def get_timestring(eventtime):
+    """Take an event.when time and return a good-looking formatted time"""
+    eventDateTime = parse(eventtime,
+        default=datetime.now(tzlocal()).replace(hour=0, minute=0,
+        second=0, microsecond=0)).astimezone(tzlocal())
+    meridiem = eventDateTime.strftime('%p').lower()
+    return eventDateTime.strftime('%l:%M') + meridiem
+
 def format_day_sub_calendar(row):
     """Formats a list of CalendarEventEntry objects into a list of pretty
     output strings."""
@@ -156,12 +164,19 @@ def format_day_sub_calendar(row):
     out = []
 
     for event in row:
-        eventStartDateTime = parse(event.when[0].start_time,
-            default=datetime.now(tzlocal()).replace(hour=0, minute=0,
-            second=0, microsecond=0)).astimezone(tzlocal())
-        meridiem = eventStartDateTime.strftime('%p').lower()
-        tmpTimeStr = eventStartDateTime.strftime('%l:%M') + meridiem
-        out.append('%-7s  %s' % (tmpTimeStr, event.title.text))
+        startTimeStr = get_timestring(event.when[0].start_time)
+        endTimeStr = get_timestring(event.when[0].end_time)
+
+        if startTimeStr == endTimeStr == '12:00am':
+            out.append('All day: %s' % (event.title.text))
+        elif startTimeStr == endTimeStr:
+            out.append('        %-7s  %s' % (startTimeStr, event.title.text))
+        else:
+            out.append('%-7s-%-7s  %s' % (startTimeStr, endTimeStr,
+                                            event.title.text))
+
+        if event.where[0].value_string:
+            out.append('%15s: %s' % ('Location', event.where[0].value_string))
 
     return out
 
