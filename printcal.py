@@ -10,6 +10,7 @@ from dateutil.parser import *
 import gcalcli
 import miniweather
 import os
+import re
 import sys
 import tempfile
 import textwrap
@@ -76,7 +77,7 @@ def iter_todo(path, start=datetime.now(tzlocal()).replace(hour=0, minute=0,
             # remove the first line, since it's boilerplate
             out = []
             for i in todolist[1:]:
-                line = i.strip()
+                line = re.sub(' \[.*\]$', '', i.strip())
                 if line.startswith('-'):
                     out.append('   ' + line)
                 elif line.startswith('*'):
