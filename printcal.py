@@ -232,18 +232,26 @@ def main():
 
     gcal = gcalcli.GoogleCalendar(username=usr, password=pwd, access=access, details=details)
 
-    remaining = 65
+    maxlength = 65
+    remaining = maxlength
     out = []
+    maxwidth = 78
 
-    iter = iter_text_days(gcal, firstoverdue=True, maxwidth=78,
+    iter = iter_text_days(gcal, firstoverdue=True, maxwidth=maxwidth,
                           path='/home/rtucker/bin/todo.py')
 
     while remaining > 0:
         row = iter.next()
-        row.append('')  # to get a nice blank line
+        if len(row) > 0:
+            row.append('')  # to get a nice blank line
         remaining -= len(row)
         if remaining > 0:
-            out.extend(row)
+            for i in row:
+                if len(out) is ((maxlength/3)-2):
+                    # pad the line with dots if it's a good fold point
+                    out.append(str('{0:.<%i}' % maxwidth).format(i))
+                else:
+                    out.append(i)
 
     if len(sys.argv) > 1:
         if sys.argv[1] == 'console':
