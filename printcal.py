@@ -141,12 +141,13 @@ def format_day_text(daydict, order=['weather', 'calendar', 'todo']):
     out = []
     if daydict.has_key('datetime'):
         out.append(daydict['datetime'].strftime('%A, %B %d (Day %j, week %W)'))
-    elif daydict['day'] < 0:
-        out.append('*** OVERDUE TODO LIST ITEMS ***')
 
     for i in order:
         if daydict.has_key(i):
-            out.extend(eval('format_day_sub_%s(daydict["%s"])' % (i, i)))
+            tmp = eval('format_day_sub_%s(daydict["%s"])' % (i, i))
+            if daydict['day'] < 0 and i is 'todo' and len(tmp) > 0:
+                out.append('*** OVERDUE TODO LIST ITEMS ***')
+            out.extend(tmp)
 
     return out
 
