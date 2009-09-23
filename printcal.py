@@ -14,6 +14,7 @@ import re
 import sys
 import tempfile
 import textwrap
+import time
 
 def get_cal_by_day(gcal, date=datetime.now(tzlocal()).replace(hour=0, minute=0,
                    second=0, microsecond=0)):
@@ -232,7 +233,7 @@ def main():
 
     gcal = gcalcli.GoogleCalendar(username=usr, password=pwd, access=access, details=details)
 
-    maxlength = 65
+    maxlength = 62
     remaining = maxlength
     out = []
     maxwidth = 78
@@ -252,6 +253,20 @@ def main():
                     out.append(str('{0:.<%i}' % maxwidth).format(i))
                 else:
                     out.append(i)
+
+    for i in range(0,maxlength-len(out)):
+        # pad with some blank lines
+        out.append('')
+
+    todaydatetime = time.strftime('%m/%d at %H:%M')
+
+    printcalrevdate = time.strftime('%Y.%m.%d.%H%M',
+                      time.localtime(os.stat(sys.argv[0]).st_mtime))
+
+    myhostname = os.uname()[1]
+
+    out.append('Schedule printed %s: printcal (%s) on %s' % (
+               todaydatetime, printcalrevdate, myhostname))
 
     if len(sys.argv) > 1:
         if sys.argv[1] == 'console':
