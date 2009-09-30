@@ -248,7 +248,7 @@ def main():
     details = True
 
     cookiefile = '/home/rtucker/dev/printcal/oblique_strategies.txt'
-    maxlength = 63
+    maxlength = 64
     maxwidth = 78
 
     gcal = gcalcli.GoogleCalendar(username=usr, password=pwd, access=access, details=details)
