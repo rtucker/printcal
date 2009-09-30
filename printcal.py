@@ -10,6 +10,7 @@ from dateutil.parser import *
 import gcalcli
 import miniweather
 import os
+import random
 import re
 import sys
 import tempfile
@@ -231,12 +232,29 @@ def main():
     access = gcalcli.GetConfig(cfg, 'cals', 'all')
     details = True
 
+    cookiefile = 'oblique_strategies.txt'
+    maxlength = 63
+    maxwidth = 78
+
     gcal = gcalcli.GoogleCalendar(username=usr, password=pwd, access=access, details=details)
 
-    maxlength = 62
-    remaining = maxlength
+    footer = []
+
+    cookie = random.sample(open(cookiefile, 'r').readlines(), 1)[0].strip()
+
+    todaydatetime = time.strftime('%m/%d at %H:%M')
+
+    printcalrevdate = time.strftime('%Y.%m.%d.%H%M',
+                      time.localtime(os.stat(sys.argv[0]).st_mtime))
+
+    myhostname = os.uname()[1]
+
+    footer.extend(textwrap.wrap(cookie, maxwidth))
+    footer.append('Schedule printed %s: printcal (%s) on %s' % (
+               todaydatetime, printcalrevdate, myhostname))
+
+    remaining = maxlength - len(footer)
     out = []
-    maxwidth = 78
 
     iter = iter_text_days(gcal, firstoverdue=True, maxwidth=maxwidth,
                           path='/home/rtucker/bin/todo.py')
@@ -258,15 +276,7 @@ def main():
         # pad with some blank lines
         out.append('')
 
-    todaydatetime = time.strftime('%m/%d at %H:%M')
-
-    printcalrevdate = time.strftime('%Y.%m.%d.%H%M',
-                      time.localtime(os.stat(sys.argv[0]).st_mtime))
-
-    myhostname = os.uname()[1]
-
-    out.append('Schedule printed %s: printcal (%s) on %s' % (
-               todaydatetime, printcalrevdate, myhostname))
+    out.extend(footer)
 
     if len(sys.argv) > 1:
         if sys.argv[1] == 'console':
