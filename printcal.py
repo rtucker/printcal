@@ -247,7 +247,7 @@ def main():
     access = gcalcli.GetConfig(cfg, 'cals', 'all')
     details = True
 
-    cookiefile = 'oblique_strategies.txt'
+    cookiefile = '/home/rtucker/dev/printcal/oblique_strategies.txt'
     maxlength = 63
     maxwidth = 78
 
