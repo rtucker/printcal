@@ -574,7 +574,7 @@ class hm_subcommands(subcommands):
                 for task in my_pri_tasks:
                     print "    *", task["summary"], "(%s)" % encode_locator(task["id"]), "[%s]" % task["tags"]
                     if task["description"]:
-                        print "     -", task["description"].rstrip().replace("\n","\n        ")
+                        print "     -", task["description"].encode("ascii","replace").rstrip().replace("\n","\n        ")
                     #print dir(task)
                     #print task
                     # TODO: protocol doesn't *have* last_repeat anymore,

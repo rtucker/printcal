@@ -272,7 +272,7 @@ def main():
     out = []
 
     iter = iter_text_days(gcal, firstoverdue=True, maxwidth=maxwidth,
-                          path='/home/rtucker/bin/todo.py')
+                          path='/home/rtucker/dev/printcal/todo.py')
 
     while remaining > 0:
         row = iter.next()
@@ -293,7 +293,7 @@ def main():
     if remaining > 2:
         out.append('Todo List Items of the Future...')
         remaining -= 1
-        todoiter = iter_random_todo(path='/home/rtucker/bin/todo.py')
+        todoiter = iter_random_todo(path='/home/rtucker/dev/printcal/todo.py')
 
         while remaining > 0:
             try:
