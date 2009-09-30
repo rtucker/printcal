@@ -10,6 +10,7 @@ from dateutil.parser import *
 import gcalcli
 import miniweather
 import os
+import random
 import re
 import sys
 import tempfile
@@ -89,6 +90,21 @@ def iter_todo(path, start=datetime.now(tzlocal()).replace(hour=0, minute=0,
         else:
             # empty list
             yield []
+
+def iter_random_todo(path):
+    """Returns iterator of random, no-due-date todo list items"""
+
+    todoids = os.popen(path + ' --due after/forever --task-ids-only').readlines()
+    if len(todoids) > 0:
+        random.shuffle(todoids)
+        for i in todoids:
+            try:
+                todoitem = os.popen(path + ' listid ' + i).readlines()[2]
+                line = re.sub(' \[.*\]$', '', todoitem.strip())
+                if line.startswith('*'):
+                    yield line
+            except:
+                yield 'Bad ID ' + i
 
 def iter_days(gcal, start=datetime.now(tzlocal()).replace(hour=0, minute=0,
               second=0, microsecond=0),
@@ -231,32 +247,15 @@ def main():
     access = gcalcli.GetConfig(cfg, 'cals', 'all')
     details = True
 
-    gcal = gcalcli.GoogleCalendar(username=usr, password=pwd, access=access, details=details)
-
-    maxlength = 62
-    remaining = maxlength
-    out = []
+    cookiefile = '/home/rtucker/dev/printcal/oblique_strategies.txt'
+    maxlength = 63
     maxwidth = 78
 
-    iter = iter_text_days(gcal, firstoverdue=True, maxwidth=maxwidth,
-                          path='/home/rtucker/bin/todo.py')
+    gcal = gcalcli.GoogleCalendar(username=usr, password=pwd, access=access, details=details)
 
-    while remaining > 0:
-        row = iter.next()
-        if len(row) > 0:
-            row.append('')  # to get a nice blank line
-        remaining -= len(row)
-        if remaining > 0:
-            for i in row:
-                if len(out) is (maxlength/3):
-                    # pad the line with dots if it's a good fold point
-                    out.append(str('{0:.<%i}' % maxwidth).format(i))
-                else:
-                    out.append(i)
+    footer = ['']
 
-    for i in range(0,maxlength-len(out)):
-        # pad with some blank lines
-        out.append('')
+    cookie = random.sample(open(cookiefile, 'r').readlines(), 1)[0].strip()
 
     todaydatetime = time.strftime('%m/%d at %H:%M')
 
@@ -265,8 +264,47 @@ def main():
 
     myhostname = os.uname()[1]
 
-    out.append('Schedule printed %s: printcal (%s) on %s' % (
+    footer.extend(textwrap.wrap(cookie, maxwidth))
+    footer.append('Schedule printed %s: printcal (%s) on %s' % (
                todaydatetime, printcalrevdate, myhostname))
+
+    remaining = maxlength - len(footer)
+    out = []
+
+    iter = iter_text_days(gcal, firstoverdue=True, maxwidth=maxwidth,
+                          path='/home/rtucker/bin/todo.py')
+
+    while remaining > 0:
+        row = iter.next()
+        if len(row) > 1:
+            row.append('')  # to get a nice blank line
+            remaining -= len(row)
+            if remaining > 0:
+                for i in row:
+                    if len(out) is ((maxlength/3)-1):
+                        # pad the line with dots if it's a good fold point
+                        out.append(str('{0:.<%i}' % maxwidth).format(i))
+                    else:
+                        out.append(i)
+
+    # reset remaining
+    remaining = maxlength - len(footer) - len(out)
+
+    if remaining > 2:
+        out.append('Todo List Items of the Future...')
+        remaining -= 1
+        todoiter = iter_random_todo(path='/home/rtucker/bin/todo.py')
+
+        while remaining > 0:
+            try:
+                row = textwrap.wrap(todoiter.next(), maxwidth)
+                if len(row) < remaining:
+                    remaining -= len(row)
+                    out.extend(row)
+            except StopIteration:
+                remaining = 0
+
+    out.extend(footer)
 
     if len(sys.argv) > 1:
         if sys.argv[1] == 'console':
