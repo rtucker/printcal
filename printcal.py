@@ -148,7 +148,10 @@ def iter_days(gcal, start=datetime.now(tzlocal()).replace(hour=0, minute=0,
         counter += 1
         pointer += timedelta(days=1)
 
-        yield outdict
+        if pointer > end:
+            return
+        else:
+            yield outdict
 
 def format_day_text(daydict, order=['weather', 'calendar', 'todo']):
     """Formats a dictionary containing daystuff into a pretty block of
@@ -226,10 +229,14 @@ def format_day_sub_weather(row):
 def iter_text_days(gcal, start=datetime.now(tzlocal()).replace(hour=0,
                                minute=0, second=0, microsecond=0),
               end=datetime.fromtimestamp(2**31-86400, tz=tzlocal()),
+              enddelta=None,
               firstoverdue=False, weather=('Rochester', 'NY'), path=None,
               order=['weather', 'calendar', 'todo'], maxwidth=74):
     """Yields a list of rows of length < maxwidth.  Arguments are the
     union of iter_days and format_day_text, basically."""
+
+    if enddelta:
+        end = start+timedelta(days=enddelta)
 
     iter = iter_days(gcal, start=start, end=end, firstoverdue=firstoverdue,
                      weather=weather, path=path)
@@ -272,10 +279,14 @@ def main():
     out = []
 
     iter = iter_text_days(gcal, firstoverdue=True, maxwidth=maxwidth,
+                          enddelta=7,
                           path='/home/rtucker/dev/printcal/todo.py')
 
     while remaining > 0:
-        row = iter.next()
+        try:
+            row = iter.next()
+        except StopIteration:
+            break
         if len(row) > 1:
             row.append('')  # to get a nice blank line
             remaining -= len(row)
