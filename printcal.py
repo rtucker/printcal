@@ -269,7 +269,7 @@ def main():
     printcalrevdate = time.strftime('%Y.%m.%d.%H%M',
                       time.localtime(os.stat(sys.argv[0]).st_mtime))
 
-    myhostname = os.uname()[1]
+    myhostname = os.uname()[1].split('.')[0]
 
     footer.extend(textwrap.wrap(cookie, maxwidth))
     footer.append('Schedule printed %s: printcal (%s) on %s' % (
