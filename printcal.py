@@ -323,12 +323,13 @@ def main():
             sys.exit(0)
 
     printer = cups.Connection()
+    printername = printer.getDefault()
 
     tmpfile = tempfile.NamedTemporaryFile()
     tmpfile.write('\n'.join(out))
     tmpfile.flush()
     tmpfile.seek(0)
-    printer.printFile('samsung', tmpfile.name, "Ryan's Daily Schedule", {})
+    printer.printFile(printername, tmpfile.name, "Ryan's Daily Schedule", {})
     tmpfile.close()
 
 if __name__ == '__main__': main()
