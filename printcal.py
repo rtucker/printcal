@@ -12,6 +12,7 @@ import miniweather
 import os
 import random
 import re
+import shelve
 import sys
 import tempfile
 import textwrap
@@ -94,17 +95,28 @@ def iter_todo(path, start=datetime.now(tzlocal()).replace(hour=0, minute=0,
 def iter_random_todo(path):
     """Returns iterator of random, no-due-date todo list items"""
 
+    # cache is a dict:  {'taskid': (todoitem object, timestamp)}
+    cache = shelve.open('/tmp/printcalcache.shelve', writeback=True)
+    # expire stuff
+    for i in cache.keys():
+        item, ts = cache[i]
+        if ts+(15*24*60*60) < time.time():
+            # more than 15 days old; purge.
+            del cache[i]
+
     todoids = os.popen(path + ' --due after/forever --task-ids-only').readlines()
     if len(todoids) > 0:
         random.shuffle(todoids)
         for i in todoids:
-            try:
+            if i in cache:
+                todoitem, ts = cache[i]
+            else: 
                 todoitem = os.popen(path + ' listid ' + i).readlines()[2]
-                line = re.sub(' \[.*\]$', '', todoitem.strip())
-                if line.startswith('*'):
-                    yield line
-            except:
-                yield 'Bad ID ' + i
+                cache[i] = (todoitem, time.time())
+
+            line = re.sub(' \[.*\]$', '', todoitem.strip())
+            if line.startswith('*'):
+                yield line
 
 def iter_days(gcal, start=datetime.now(tzlocal()).replace(hour=0, minute=0,
               second=0, microsecond=0),
@@ -255,7 +267,7 @@ def main():
     details = True
 
     cookiefile = '/home/rtucker/dev/printcal/oblique_strategies.txt'
-    maxlength = 61
+    maxlength = 60
     maxwidth = 78
 
     gcal = gcalcli.GoogleCalendar(username=usr, password=pwd, access=access, details=details)
@@ -308,10 +320,10 @@ def main():
 
         while remaining > 0:
             try:
-                row = textwrap.wrap(todoiter.next(), maxwidth)
-                if len(row) < remaining:
-                    remaining -= len(row)
-                    out.extend(row)
+                row = todoiter.next()
+                if len(row) < maxwidth:
+                    remaining -= 1
+                    out.append(row)
             except StopIteration:
                 remaining = 0
 
