@@ -304,7 +304,7 @@ def main():
             remaining -= len(row)
             if remaining > 0:
                 for i in row:
-                    if len(out) is ((maxlength/3)-1):
+                    if len(out) is ((maxlength/3)-2):
                         # pad the line with dots if it's a good fold point
                         out.append(str('{0:.<%i}' % maxwidth).format(i))
                     else:
