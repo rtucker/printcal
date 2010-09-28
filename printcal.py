@@ -13,10 +13,14 @@ import os
 import random
 import re
 import shelve
+import string
 import sys
 import tempfile
 import textwrap
 import time
+
+# build translation ascii table
+asciitable = string.maketrans(''.join(chr(a) for a in xrange(127,256)), '?'*129)
 
 def get_cal_by_day(gcal, date=datetime.now(tzlocal()).replace(hour=0, minute=0,
                    second=0, microsecond=0)):
@@ -304,6 +308,7 @@ def main():
             remaining -= len(row)
             if remaining > 0:
                 for i in row:
+                    i = i.translate(asciitable)
                     if len(out) is ((maxlength/3)-2):
                         # pad the line with dots if it's a good fold point
                         out.append(str('{0:.<%i}' % maxwidth).format(i))
@@ -320,7 +325,7 @@ def main():
 
         while remaining > 0:
             try:
-                row = todoiter.next()
+                row = todoiter.next().translate(asciitable)
                 if len(row) < maxwidth:
                     remaining -= 1
                     out.append(row)
