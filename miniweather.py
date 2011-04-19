@@ -7,7 +7,11 @@ import weather
 daysofweek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 def getweather(city='Rochester',state='NY'):
-    forecast = weather.get_forecast(city, state).split('\n')
+    try:
+        forecast = weather.get_forecast(city, state).split('\n')
+    except SystemExit:
+        return {}
+
     forecastdict = {}
 
     today = time.localtime()[6]
